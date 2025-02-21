@@ -54,4 +54,5 @@ def unary_operator_factory(unary_target: str, tosa_op):
     register_node_visitor(UnaryOperator_080_MI)
 
 
+unary_operator_factory("aten.ceil.default", TosaOp.Op().CEIL)
 unary_operator_factory("aten.floor.default", TosaOp.Op().FLOOR)
