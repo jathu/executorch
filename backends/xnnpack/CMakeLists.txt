@@ -73,6 +73,12 @@ foreach(fbs_file ${_xnnpack_schema__srcs})
   )
 endforeach()
 
+if(WIN32)
+  set(MV_COMMAND powershell -Command "Move-Item -Path ${_xnnpack_flatbuffer__outputs} -Destination ${_xnnpack_schema__outputs}")
+else()
+  set(MV_COMMAND mv ${_xnnpack_flatbuffer__outputs} ${_xnnpack_schema__outputs})
+endif()
+
 # Generate the headers from the .fbs files.
 add_custom_command(
   OUTPUT ${_xnnpack_schema__outputs}
@@ -80,11 +86,13 @@ add_custom_command(
     ${FLATC_EXECUTABLE} --cpp --cpp-std c++11 --scoped-enums -o
     "${_xnnpack_schema__include_dir}/executorch/backends/xnnpack/serialization"
     ${_xnnpack_schema__srcs}
-  COMMAND mv ${_xnnpack_flatbuffer__outputs} ${_xnnpack_schema__outputs}
+  COMMAND ${MV_COMMAND}
   WORKING_DIRECTORY ${EXECUTORCH_ROOT}
   COMMENT "Generating xnnpack_schema headers"
   VERBATIM
 )
+
+unset(MV_COMMAND)
 
 add_library(xnnpack_schema INTERFACE ${_xnnpack_schema__outputs})
 set_target_properties(xnnpack_schema PROPERTIES LINKER_LANGUAGE CXX)
