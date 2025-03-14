@@ -29,11 +29,13 @@ class Runner {
   explicit Runner(
       const std::vector<std::string>& models_path,
       const std::string& tokenizer_path,
+      const std::string& performance_output_path_,
       const float logits_scale,
       const int32_t logits_offset,
       const float temperature,
       const int eval_mode,
-      const std::string& kv_updater);
+      const std::string& kv_updater,
+      const int num_iters);
 
   struct Stats {
     // Scaling factor for timestamps - in this case, we use ms.
@@ -101,6 +103,7 @@ class Runner {
   const int32_t n_eos_;
   std::vector<std::shared_ptr<executorch::extension::Module>> modules_;
   std::string tokenizer_path_;
+  std::string performance_output_path_;
   float logits_scale_;
   int32_t logits_offset_;
   float temperature_;
@@ -115,6 +118,7 @@ class Runner {
   std::vector<std::string> method_names_;
   LlamaVersion llama_version_;
   std::string kv_updater_;
+  int num_iters_;
 };
 
 } // namespace example
