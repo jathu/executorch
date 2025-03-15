@@ -31,7 +31,6 @@ from executorch.backends.xnnpack.utils.xnnpack_constants import (
     XNN_VALUE_FLAG_EXTERNAL_INPUT,
     XNN_VALUE_FLAG_EXTERNAL_OUTPUT,
 )
-from executorch.exir._serialize._named_data_store import NamedDataStore
 
 from executorch.exir.backend.backend_details import (
     BackendDetails,
@@ -104,7 +103,7 @@ class XnnpackBackend(BackendDetails):
         edge_program: ExportedProgram,
         compile_specs: List[CompileSpec],
     ) -> PreprocessResult:
-        named_data_store = NamedDataStore()
+
         xnnpack_edge_compile_config = get_xnnpack_edge_compile_config()
 
         # Need to wrap EP here because xnnpack does addmm to linear
@@ -163,7 +162,7 @@ class XnnpackBackend(BackendDetails):
         )
 
         constant_data_bytes = bytearray()
-        node_visitors = get_node_visitors(ep, node_to_external_map, named_data_store)
+        node_visitors = get_node_visitors(ep, node_to_external_map, constant_data_bytes)
 
         for node in graph_module.graph.nodes:
             if node.op == "call_function":
@@ -192,5 +191,4 @@ class XnnpackBackend(BackendDetails):
                 xnnpack_graph, constant_data_bytes
             ),
             debug_handle_map={},
-            data_store_output=named_data_store.get_named_data_store_output(),
         )
