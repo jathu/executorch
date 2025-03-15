@@ -40,6 +40,8 @@ build_android_native_library() {
     EXECUTORCH_BUILD_NEURON=OFF
   fi
 
+  EXECUTORCH_BUILD_VULKAN="${EXECUTORCH_BUILD_VULKAN:-OFF}"
+
   cmake . -DCMAKE_INSTALL_PREFIX="${CMAKE_OUT}" \
     -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK}/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="${ANDROID_ABI}" \
@@ -60,6 +62,7 @@ build_android_native_library() {
     -DNEURON_BUFFER_ALLOCATOR_LIB="${NEURON_BUFFER_ALLOCATOR_LIB}" \
     -DEXECUTORCH_BUILD_QNN="${EXECUTORCH_BUILD_QNN}" \
     -DQNN_SDK_ROOT="${QNN_SDK_ROOT}" \
+    -DEXECUTORCH_BUILD_VULKAN="${EXECUTORCH_BUILD_VULKAN}" \
     -DCMAKE_BUILD_TYPE="${EXECUTORCH_CMAKE_BUILD_TYPE}" \
     -B"${CMAKE_OUT}"
 
@@ -70,6 +73,11 @@ build_android_native_library() {
   fi
   cmake --build "${CMAKE_OUT}" -j "${CMAKE_JOBS}" --target install --config "${EXECUTORCH_CMAKE_BUILD_TYPE}"
 
+  # Update tokenizers submodule
+  pushd extension/llm/tokenizers
+  echo "Update tokenizers submodule"
+  git submodule update --init
+  popd
   cmake extension/android \
     -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
     -DANDROID_ABI="${ANDROID_ABI}" \
@@ -129,47 +137,6 @@ build_aar() {
   popd
 }
 
-build_android_demo_apps() {
-  mkdir -p examples/demo-apps/android/LlamaDemo/app/libs
-  cp ${BUILD_AAR_DIR}/executorch.aar examples/demo-apps/android/LlamaDemo/app/libs
-  pushd examples/demo-apps/android/LlamaDemo
-  ANDROID_HOME="${ANDROID_SDK:-/opt/android/sdk}" ./gradlew build assembleAndroidTest
-  popd
-
-  mkdir -p extension/benchmark/android/benchmark/app/libs
-  cp ${BUILD_AAR_DIR}/executorch.aar extension/benchmark/android/benchmark/app/libs
-  pushd extension/benchmark/android/benchmark
-  ANDROID_HOME="${ANDROID_SDK:-/opt/android/sdk}" ./gradlew build assembleAndroidTest
-  popd
-
-  pushd extension/android_test
-  ANDROID_HOME="${ANDROID_SDK:-/opt/android/sdk}" ./gradlew testDebugUnitTest
-  ANDROID_HOME="${ANDROID_SDK:-/opt/android/sdk}" ./gradlew build assembleAndroidTest
-  popd
-}
-
-collect_artifacts_to_be_uploaded() {
-  ARTIFACTS_DIR_NAME="$1"
-  DEMO_APP_DIR="${ARTIFACTS_DIR_NAME}/llm_demo"
-  # The app directory is named using its build flavor as a suffix.
-  mkdir -p "${DEMO_APP_DIR}"
-  # Collect the app and its test suite
-  cp examples/demo-apps/android/LlamaDemo/app/build/outputs/apk/debug/*.apk "${DEMO_APP_DIR}"
-  cp examples/demo-apps/android/LlamaDemo/app/build/outputs/apk/androidTest/debug/*.apk "${DEMO_APP_DIR}"
-  # Collect JAR and AAR
-  cp extension/android/build/libs/executorch.jar "${DEMO_APP_DIR}"
-  find "${BUILD_AAR_DIR}/" -name 'executorch*.aar' -exec cp {} "${DEMO_APP_DIR}" \;
-  # Collect MiniBench APK
-  MINIBENCH_APP_DIR="${ARTIFACTS_DIR_NAME}/minibench"
-  mkdir -p "${MINIBENCH_APP_DIR}"
-  cp extension/benchmark/android/benchmark/app/build/outputs/apk/debug/*.apk "${MINIBENCH_APP_DIR}"
-  # Collect Java library test
-  JAVA_LIBRARY_TEST_DIR="${ARTIFACTS_DIR_NAME}/library_test_dir"
-  mkdir -p "${JAVA_LIBRARY_TEST_DIR}"
-  cp extension/android_test/build/outputs/apk/debug/*.apk "${JAVA_LIBRARY_TEST_DIR}"
-  cp extension/android_test/build/outputs/apk/androidTest/debug/*.apk "${JAVA_LIBRARY_TEST_DIR}"
-}
-
 main() {
   if [[ -z "${BUILD_AAR_DIR:-}" ]]; then
     BUILD_AAR_DIR="$(mktemp -d)"
@@ -187,10 +154,6 @@ main() {
     build_android_native_library ${ANDROID_ABI}
   done
   build_aar
-  build_android_demo_apps
-  if [ -n "$ARTIFACTS_DIR_NAME" ]; then
-    collect_artifacts_to_be_uploaded ${ARTIFACTS_DIR_NAME}
-  fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

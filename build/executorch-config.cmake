@@ -75,7 +75,6 @@ set(lib_list
     custom_ops
     extension_module
     extension_module_static
-    extension_parallel
     extension_runner_util
     extension_tensor
     extension_threadpool
@@ -90,6 +89,7 @@ set(lib_list
     pthreadpool
     vulkan_backend
     optimized_kernels
+    optimized_portable_kernels
     cpublas
     eigen_blas
     optimized_ops_lib
@@ -131,14 +131,28 @@ endforeach()
 
 # TODO: investigate use of install(EXPORT) to cleanly handle
 # target_compile_options/target_compile_definitions for everything.
-if(TARGET extension_parallel)
-  set_target_properties(
-    extension_parallel PROPERTIES INTERFACE_LINK_LIBRARIES extension_threadpool
-  )
-endif()
 if(TARGET cpublas)
   set_target_properties(
-    cpublas PROPERTIES INTERFACE_LINK_LIBRARIES extension_parallel
+    cpublas PROPERTIES INTERFACE_LINK_LIBRARIES
+                       "extension_threadpool;eigen_blas"
+  )
+endif()
+if(TARGET optimized_kernels)
+  set_target_properties(
+    optimized_kernels PROPERTIES INTERFACE_LINK_LIBRARIES
+                                 "executorch_core;cpublas;extension_threadpool"
+  )
+endif()
+if(TARGET optimized_native_cpu_ops_lib)
+  if(TARGET optimized_portable_kernels)
+    set(_maybe_optimized_portable_kernels_lib optimized_portable_kernels)
+  else()
+    set(_maybe_optimized_portable_kernels_lib portable_kernels)
+  endif()
+  set_target_properties(
+    optimized_native_cpu_ops_lib
+    PROPERTIES INTERFACE_LINK_LIBRARIES
+               "optimized_kernels;${_maybe_optimized_portable_kernels_lib}"
   )
 endif()
 if(TARGET extension_threadpool)
